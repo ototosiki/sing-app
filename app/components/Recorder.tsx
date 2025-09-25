@@ -2,6 +2,16 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
+type AudioContextConstructor = {
+  new (contextOptions?: AudioContextOptions): AudioContext;
+};
+
+declare global {
+  interface Window {
+    webkitAudioContext?: AudioContextConstructor;
+  }
+}
+
 type RecorderState = "idle" | "recording" | "paused";
 type AudioFormat = "webm" | "wav";
 
@@ -21,6 +31,7 @@ export default function Recorder() {
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rafRef = useRef<number | null>(null);
+  const startTimeRef = useRef<number>(0);
 
   // For WAV recording (raw PCM accumulation)
   const wavBufferRef = useRef<Float32Array[]>([]);
@@ -38,9 +49,10 @@ export default function Recorder() {
 
   useEffect(() => {
     if (!isRecording) return;
-    const start = performance.now() - elapsedMs;
     const tick = () => {
-      setElapsedMs(Math.max(0, Math.floor(performance.now() - start)));
+      setElapsedMs(
+        Math.max(0, Math.floor(performance.now() - startTimeRef.current))
+      );
       timerRef.current = window.setTimeout(tick, 200);
     };
     tick();
@@ -59,8 +71,11 @@ export default function Recorder() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
       // Setup AudioContext for analyser (and WAV capture if needed)
-      const audioContext = new (window.AudioContext ||
-        (window as any).webkitAudioContext)();
+      const AudioContextCtor: AudioContextConstructor | undefined =
+        window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextCtor)
+        throw new Error("AudioContext がサポートされていません");
+      const audioContext = new AudioContextCtor();
       audioContextRef.current = audioContext;
       const sourceNode = audioContext.createMediaStreamSource(stream);
       sourceNodeRef.current = sourceNode;
@@ -89,7 +104,7 @@ export default function Recorder() {
         processorRef.current = processor;
         sourceNode.connect(processor);
         processor.connect(audioContext.destination);
-        processor.onaudioprocess = (e) => {
+        processor.onaudioprocess = (e: AudioProcessingEvent) => {
           if (isCapturePausedRef.current) return;
           const input = e.inputBuffer.getChannelData(0);
           wavBufferRef.current.push(new Float32Array(input));
@@ -97,6 +112,8 @@ export default function Recorder() {
       }
 
       // Start waveform drawing
+      // set start time for elapsed clock
+      startTimeRef.current = performance.now() - elapsedMs;
       drawWaveform();
       setRecorderState("recording");
     } catch (err: unknown) {
@@ -150,6 +167,7 @@ export default function Recorder() {
     } else {
       isCapturePausedRef.current = true;
     }
+    // keep elapsed as-is; startTime will be set on resume
     setRecorderState("paused");
   };
 
@@ -159,6 +177,8 @@ export default function Recorder() {
     } else {
       isCapturePausedRef.current = false;
     }
+    // offset start time so elapsed continues from current value
+    startTimeRef.current = performance.now() - elapsedMs;
     setRecorderState("recording");
   };
 
@@ -223,7 +243,7 @@ export default function Recorder() {
     const pcmBuffer = new DataView(new ArrayBuffer(interleaved.length * 2));
     let idx = 0;
     for (let i = 0; i < interleaved.length; i++, idx += 2) {
-      let s = Math.max(-1, Math.min(1, interleaved[i]));
+      const s = Math.max(-1, Math.min(1, interleaved[i]));
       pcmBuffer.setInt16(idx, s < 0 ? s * 0x8000 : s * 0x7fff, true);
     }
 
