@@ -8,16 +8,9 @@ export default function Home() {
       <Header />
       <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center p-8 pb-20 gap-16 sm:p-20">
         <main className="flex flex-col gap-[24px] row-start-2 items-center justify-center">
-          <Image
-            className="dark:invert ml-4"
-            src="/next.svg"
-            alt="Next.js logo"
-            width={180}
-            height={38}
-            priority
-          />
+          <a href="./about">shota</a>
           <ol className="font-mono list-inside list-none text-sm/6 text-center sm:text-left ">
-            <li className="mb-2 tracking-[-.01em]">テスト</li>
+            <li className="mb-2 tracking-[-.01em]"></li>
           </ol>
           <Recorder />
         </main>
