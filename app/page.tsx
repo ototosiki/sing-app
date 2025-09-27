@@ -17,9 +17,8 @@ export default function Home() {
             priority
           />
           <ol className="font-mono list-inside list-none text-sm/6 text-center sm:text-left ">
-            <li className="mb-2 tracking-[-.01em]">録音をしてみよう</li>
+            <li className="mb-2 tracking-[-.01em]">テスト</li>
           </ol>
-
           <Recorder />
         </main>
       </div>
